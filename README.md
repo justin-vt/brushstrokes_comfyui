@@ -5,5 +5,5 @@ A ComfyUI node that applies painterly/brush-stroke effects to images, using eith
 ## Installation
 
 ```bash
-pip install git+https://github.com/YourUser/comfy-brush-strokes.git
+pip install git+https://github.com/justin-vt/brushstrokes_comfyui.git
 ```
