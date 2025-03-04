@@ -36,60 +36,61 @@ class BrushStrokesNode:
     FUNCTION = "apply_brush_strokes"
     CATEGORY = "Custom/Artistic"
 
-    def apply_brush_strokes(self, image, method, style, strength):
-        # Debug: print type and shape.
-        print("DEBUG: type(image):", type(image))
-        if torch is not None and isinstance(image, torch.Tensor):
-            print("DEBUG: original image shape:", image.shape)
-            # Remove batch dimension: [1, H, W, C] -> [H, W, C]
-            if image.ndim == 4:
-                image = image[0]
-                print("DEBUG: after removing batch, shape:", image.shape)
-            # The tensor from Load Image is in NHWC order.
-            # to_pil_image expects CHW, so we permute.
-            pil_image = to_pil_image(image.permute(2, 0, 1).cpu())
-        else:
-            pil_image = image.convert("RGB")
-        
-        # Process the PIL image.
-        if method == "imagick":
-            if WandImage is None:
-                raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
-                in_path = tmp_in.name
-                pil_image.save(in_path, "PNG")
-            out_path = in_path + "_out.png"
-            with WandImage(filename=in_path) as wand_img:
-                if style == "oilpaint":
-                    wand_img.oil_paint(radius=float(strength))
-                elif style == "paint":
-                    wand_img.oil_paint(radius=float(strength) / 2.0)
-                else:
-                    wand_img.oil_paint(radius=float(strength))
-                wand_img.save(filename=out_path)
-            processed_pil = PILImage.open(out_path).convert("RGB")
-            if os.path.exists(in_path):
-                os.remove(in_path)
-            if os.path.exists(out_path):
-                os.remove(out_path)
-        elif method == "opencv":
-            if cv2 is None:
-                raise RuntimeError("OpenCV not installed or failed to import.")
-            cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-            sigma_s = float(strength) * 12  # Adjust mapping as needed.
-            sigma_r = 0.45  # Fixed parameter.
-            stylized = cv2.stylization(cv_image, sigma_s=sigma_s, sigma_r=sigma_r)
-            processed_pil = PILImage.fromarray(cv2.cvtColor(stylized, cv2.COLOR_BGR2RGB))
-        else:
-            raise ValueError("Unknown method. Choose either 'imagick' or 'opencv'.")
-
-        # Convert processed PIL image back to a torch.Tensor in NCHW format.
-        # to_tensor returns a tensor in CHW order.
-        result_tensor = to_tensor(processed_pil)
-        print("DEBUG: result_tensor shape (CHW):", result_tensor.shape)
-        # Add a batch dimension: [C, H, W] -> [1, C, H, W]
-        result_tensor = result_tensor.unsqueeze(0)
-        print("DEBUG: result_tensor shape (NCHW):", result_tensor.shape)
-        
-        # Return with key "IMAGE" to match the expected output.
-        return {"IMAGE": result_tensor}
+def apply_brush_strokes(self, image, method, style, strength):
+    # Debug: print type and shape of the incoming image.
+    print("DEBUG: type(image):", type(image))
+    if torch is not None and isinstance(image, torch.Tensor):
+        print("DEBUG: original image shape:", image.shape)
+        # Remove batch dimension ([1, H, W, C] -> [H, W, C])
+        if image.ndim == 4:
+            image = image[0]
+            print("DEBUG: after removing batch, shape:", image.shape)
+        # At this point, we assume image is in NHWC format.
+        # to_pil_image expects CHW, so permute: [H, W, C] -> [C, H, W].
+        pil_image = to_pil_image(image.permute(2, 0, 1).cpu())
+    else:
+        # Assume input is already a PIL image.
+        pil_image = image.convert("RGB")
+    
+    # Process the image using the selected method.
+    if method == "imagick":
+        if WandImage is None:
+            raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
+            in_path = tmp_in.name
+            pil_image.save(in_path, "PNG")
+        out_path = in_path + "_out.png"
+        with WandImage(filename=in_path) as wand_img:
+            if style == "oilpaint":
+                wand_img.oil_paint(radius=float(strength))
+            elif style == "paint":
+                wand_img.oil_paint(radius=float(strength) / 2.0)
+            else:
+                wand_img.oil_paint(radius=float(strength))
+            wand_img.save(filename=out_path)
+        processed_pil = PILImage.open(out_path).convert("RGB")
+        if os.path.exists(in_path):
+            os.remove(in_path)
+        if os.path.exists(out_path):
+            os.remove(out_path)
+    elif method == "opencv":
+        if cv2 is None:
+            raise RuntimeError("OpenCV not installed or failed to import.")
+        cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+        sigma_s = float(strength) * 12  # Adjust mapping as needed.
+        sigma_r = 0.45  # Fixed parameter.
+        stylized = cv2.stylization(cv_image, sigma_s=sigma_s, sigma_r=sigma_r)
+        processed_pil = PILImage.fromarray(cv2.cvtColor(stylized, cv2.COLOR_BGR2RGB))
+    else:
+        raise ValueError("Unknown method. Choose either 'imagick' or 'opencv'.")
+    
+    # Debug: Check if processed_pil is not None
+    if processed_pil is None:
+        raise RuntimeError("Processed image is None.")
+    
+    # Convert processed PIL image back to a torch.Tensor in NCHW format.
+    # to_tensor returns a tensor in CHW order.
+    result_tensor = to_tensor(processed_pil)
+    result_tensor = result_tensor.unsqueeze(0)  # Now shape is [1, C, H, W].
+    
+    return (result_tensor,)
