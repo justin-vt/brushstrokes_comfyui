@@ -37,14 +37,16 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, image, method, style, strength):
-        # Debug: print the type of the input "image" parameter.
+        # Debug: print the type of the incoming image.
         print("DEBUG: type(image):", type(image))
         
-        # If the image is a torch.Tensor, convert it to a PIL image.
+        # If the input is a torch.Tensor, and it has 4 dimensions, select the first image.
         if torch is not None and isinstance(image, torch.Tensor):
+            if image.ndim == 4:
+                image = image[0]
             pil_image = to_pil_image(image.cpu())
         else:
-            # Assume image is already a PIL image.
+            # Assume the input is a PIL image.
             pil_image = image.convert("RGB")
         
         if method == "imagick":
