@@ -98,7 +98,17 @@ class BrushStrokesNode:
         print("DEBUG: result_tensor dtype:", result_tensor.dtype)
     
         # Ensure the tensor is in the correct format for saving
-        if result_tensor.dtype != torch.uint8:
-            result_tensor = (result_tensor * 255).clamp(0, 255).to(torch.uint8)
+        # Convert tensor back to a valid PIL image before returning
+        result_numpy = result_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()  # Convert from [1, C, H, W] to [H, W, C]
+
+        # Ensure it's in the correct uint8 format
+        result_numpy = (result_numpy * 255).clip(0, 255).astype(np.uint8)
+
+        # Convert to PIL Image
+        processed_pil = PILImage.fromarray(result_numpy)
+
+        # Convert back to tensor for ComfyUI
+        result_tensor = to_tensor(processed_pil).unsqueeze(0)
+
     
         return (result_tensor,)
