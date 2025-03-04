@@ -10,15 +10,15 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "input_image": ("IMAGE",),
-                # Library selection dropdown
-                "library": (["ImageMagick", "OpenCV"],),
-                # Brush style dropdown
-                "style": (["Oil Paint", "Charcoal", "Sketch"],),
-                # Numerical input for effect intensity as a textbox with a default value.
-                "strength": ("FLOAT", {"default": 10.0, "min": 0.0, "max": 100.0, "step": 1.0}),
-                # Numerical input for radius as a textbox with a default value.
-                "radius": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0})
+                "input_image": ("IMAGE", {"tooltip": "Input image tensor from the Load Image node."}),
+                # Library selection: choose between ImageMagick (via Wand) or OpenCV.
+                "library": (["ImageMagick", "OpenCV"], {"tooltip": "Select the processing library to use."}),
+                # Brush style selection
+                "style": (["Oil Paint", "Charcoal", "Sketch"], {"tooltip": "Select the brush style effect. 'Oil Paint' uses only the radius parameter. 'Charcoal' and 'Sketch' use both radius and strength."}),
+                # Numerical parameter for effect intensity.
+                "strength": ("FLOAT", {"default": 10.0, "min": 0.0, "max": 100.0, "step": 1.0, "tooltip": "Effect intensity: For Charcoal/Sketch this sets the sigma value (affects the spread of the effect). For OpenCV, used as sigma_r (scaled down)."}),
+                # Radius parameter controlling stroke scale.
+                "radius": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "tooltip": "Controls the spatial scale of the effect (i.e. brush stroke size)."})
             }
         }
     
