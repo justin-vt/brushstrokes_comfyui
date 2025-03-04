@@ -1,0 +1,15 @@
+[project]
+name = "brushstrokes"
+description = "A ComfyUI node that applies painterly/brush-stroke effects to images, using either ImageMagick (Wand) or G'MIC (gmic-py) under the hood."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["Pillow>=9.0.0", "wand>=0.6.10", "opencv-python>=4.5.3.56", "numpy>=1.18.0"]
+
+[project.urls]
+Repository = "https://github.com/justin-vt/ComfyUI-brushstrokes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-brushstrokes"
+Icon = ""
