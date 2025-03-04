@@ -16,7 +16,7 @@ except ImportError:
 
 try:
     import torch
-    from torchvision.transforms.functional import to_pil_image
+    from torchvision.transforms.functional import to_pil_image, to_tensor
 except ImportError:
     torch = None
 
@@ -25,13 +25,12 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),
+                "image": ("IMAGE",),  # Expected to be a torch.Tensor with shape [1, H, W, C]
                 "method": (["imagick", "opencv"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint"], {"default": "oilpaint", "label": "Style"}),
                 "strength": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "label": "Strength"}),
             }
         }
-
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_brush_strokes"
     CATEGORY = "Custom/Artistic"
@@ -40,25 +39,18 @@ class BrushStrokesNode:
         # Debug: print the type and shape (if tensor) of the input.
         print("DEBUG: type(image):", type(image))
         
-        # If the image is a torch.Tensor, process accordingly.
+        # If the input is a torch.Tensor, assume it is in NHWC format ([1, H, W, C])
         if torch is not None and isinstance(image, torch.Tensor):
             print("DEBUG: original image shape:", image.shape)
-            # Remove batch dimension if present.
+            # Remove batch dimension:
             if image.ndim == 4:
                 image = image[0]
                 print("DEBUG: after removing batch, shape:", image.shape)
-            # Check if the tensor appears to be in HWC format.
-            # If the first dimension is NOT in [1, 3, 4], assume it's HWC.
-            if image.ndim == 3:
-                if image.shape[0] not in [1, 3, 4]:
-                    print("DEBUG: Detected HWC format; permuting to CHW.")
-                    image = image.permute(2, 0, 1)
-                    print("DEBUG: new shape after permutation:", image.shape)
-                else:
-                    print("DEBUG: Assuming tensor is already in CHW format; no permutation needed.")
-            pil_image = to_pil_image(image.cpu())
+            # At this point, we assume the image is in HWC format.
+            # to_pil_image expects CHW so we permute temporarily for conversion.
+            pil_image = to_pil_image(image.permute(2, 0, 1).cpu())
         else:
-            # Assume the input is already a PIL image.
+            # Otherwise, assume it's already a PIL image.
             pil_image = image.convert("RGB")
         
         # Process with the chosen method.
@@ -77,7 +69,7 @@ class BrushStrokesNode:
                 else:
                     wand_img.oil_paint(radius=float(strength))
                 wand_img.save(filename=out_path)
-            result_img = PILImage.open(out_path).convert("RGB")
+            processed_pil = PILImage.open(out_path).convert("RGB")
             if os.path.exists(in_path):
                 os.remove(in_path)
             if os.path.exists(out_path):
@@ -89,8 +81,13 @@ class BrushStrokesNode:
             sigma_s = float(strength) * 12  # Adjust mapping as needed.
             sigma_r = 0.45  # Fixed parameter.
             stylized = cv2.stylization(cv_image, sigma_s=sigma_s, sigma_r=sigma_r)
-            result_img = PILImage.fromarray(cv2.cvtColor(stylized, cv2.COLOR_BGR2RGB))
+            processed_pil = PILImage.fromarray(cv2.cvtColor(stylized, cv2.COLOR_BGR2RGB))
         else:
             raise ValueError("Unknown method. Choose either 'imagick' or 'opencv'.")
         
-        return {"image": result_img}
+        # Convert processed PIL image back to a torch.Tensor in NHWC format.
+        result_tensor = to_tensor(processed_pil)  # returns tensor in CHW, float [0,1]
+        result_tensor = result_tensor.permute(1, 2, 0)  # convert to HWC
+        result_tensor = result_tensor.unsqueeze(0)      # add batch dimension => [1, H, W, C]
+        
+        return {"image": result_tensor}
