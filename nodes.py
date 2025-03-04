@@ -17,7 +17,7 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pixels": ("IMAGE",),  # Accepts a dict with "image" key or a PIL image directly
+                "pixels": ("IMAGE",),  # Expects a dict with "image" key or a raw PIL image.
                 "method": (["imagick", "gmic"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint", "painting", "brushify"], {"default": "oilpaint", "label": "Style"}),
                 "strength": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "label": "Strength"}),
@@ -29,15 +29,15 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, pixels, method, style, strength):
-        # Accept either a dict containing a PIL image or a raw PIL image
+        # Check if input is a dict with a PIL image under 'image', or a raw PIL image.
         if isinstance(pixels, dict) and "image" in pixels:
             pil_image = pixels["image"].convert("RGB")
         elif isinstance(pixels, PILImage.Image):
             pil_image = pixels.convert("RGB")
         else:
-            raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly.")
+            raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
 
-        # Save the PIL image to a temporary file so that it can be processed by Wand or G'MIC.
+        # Save the PIL image to a temporary file for processing.
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
             in_path = tmp_in.name
             pil_image.save(in_path, "PNG")
@@ -69,8 +69,10 @@ class BrushStrokesNode:
             g.run(cmd)
             g.run(out_path)
 
+        # Open and convert the processed image.
         result_img = PILImage.open(out_path).convert("RGB")
 
+        # Clean up temporary files.
         if os.path.exists(in_path):
             os.remove(in_path)
         if os.path.exists(out_path):
