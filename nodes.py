@@ -97,4 +97,8 @@ class BrushStrokesNode:
         print("DEBUG: result_tensor shape:", result_tensor.shape)
         print("DEBUG: result_tensor dtype:", result_tensor.dtype)
     
+        # Ensure the tensor is in the correct format for saving
+        if result_tensor.dtype != torch.uint8:
+            result_tensor = (result_tensor * 255).clamp(0, 255).to(torch.uint8)
+    
         return (result_tensor,)
