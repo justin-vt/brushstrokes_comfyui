@@ -37,16 +37,23 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, image, method, style, strength):
-        # Debug: print the type of the incoming image.
+        # Debug: print the type and shape (if tensor) of the input.
         print("DEBUG: type(image):", type(image))
-        
-        # If the input is a torch.Tensor, and it has 4 dimensions, select the first image.
         if torch is not None and isinstance(image, torch.Tensor):
+            print("DEBUG: image.shape:", image.shape)
+            # If the tensor has a batch dimension, select the first element.
             if image.ndim == 4:
                 image = image[0]
+                print("DEBUG: using first element from batch, new shape:", image.shape)
+            # If the tensor is 3D but in HWC order (e.g., shape[0] not in [1,3,4] but last dimension is valid)
+            if image.ndim == 3:
+                if image.shape[0] not in [1, 3, 4] and image.shape[-1] in [1, 3, 4]:
+                    print("DEBUG: Permuting tensor from HWC to CHW")
+                    image = image.permute(2, 0, 1)
+                    print("DEBUG: new shape:", image.shape)
             pil_image = to_pil_image(image.cpu())
         else:
-            # Assume the input is a PIL image.
+            # Assume image is already a PIL image.
             pil_image = image.convert("RGB")
         
         if method == "imagick":
