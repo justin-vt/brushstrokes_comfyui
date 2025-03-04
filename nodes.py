@@ -12,14 +12,14 @@ try:
     import numpy as np
 except ImportError:
     cv2 = None
+    np = None
 
 class BrushStrokesNode:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                # Accepts a dict with key "image" or "IMAGE", a raw PIL image,
-                # or even a list of such images.
+                # Accepts a dict with key "image" or "IMAGE", a raw PIL image, or a numpy array.
                 "pixels": ("IMAGE",),
                 "method": (["imagick", "opencv"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint"], {"default": "oilpaint", "label": "Style"}),
@@ -46,6 +46,8 @@ class BrushStrokesNode:
                 raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
         elif isinstance(pixels, PILImage.Image):
             pil_image = pixels
+        elif np is not None and isinstance(pixels, np.ndarray):
+            pil_image = PILImage.fromarray(pixels)
         else:
             raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
 
@@ -55,7 +57,6 @@ class BrushStrokesNode:
         if method == "imagick":
             if WandImage is None:
                 raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
-            # Save the image to a temporary file.
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
                 in_path = tmp_in.name
                 pil_image.save(in_path, "PNG")
@@ -69,7 +70,6 @@ class BrushStrokesNode:
                     wand_img.oil_paint(radius=float(strength))
                 wand_img.save(filename=out_path)
             result_img = PILImage.open(out_path).convert("RGB")
-            # Clean up temporary files.
             if os.path.exists(in_path):
                 os.remove(in_path)
             if os.path.exists(out_path):
@@ -77,11 +77,9 @@ class BrushStrokesNode:
         elif method == "opencv":
             if cv2 is None:
                 raise RuntimeError("OpenCV not installed or failed to import.")
-            # Convert the PIL image to a NumPy array in BGR format.
             cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-            # Map 'strength' to a spatial parameter (sigma_s); adjust as needed.
-            sigma_s = float(strength) * 12
-            sigma_r = 0.45  # fixed range parameter for stylization
+            sigma_s = float(strength) * 12  # Adjust this mapping as needed.
+            sigma_r = 0.45  # Fixed parameter.
             stylized = cv2.stylization(cv_image, sigma_s=sigma_s, sigma_r=sigma_r)
             result_img = PILImage.fromarray(cv2.cvtColor(stylized, cv2.COLOR_BGR2RGB))
         else:
