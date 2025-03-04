@@ -17,7 +17,7 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pixels": ("IMAGE",),
+                "pixels": ("IMAGE",),  # Expected to be a dict with key "image" (a PIL image)
                 "method": (["imagick", "gmic"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint", "painting", "brushify"], {"default": "oilpaint", "label": "Style"}),
                 "strength": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "label": "Strength"}),
@@ -29,26 +29,13 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, pixels, method, style, strength):
-        # Handle input: if it's a dict with a PIL image, use it;
-        # otherwise, assume it's a torch.Tensor.
+        # Expect input to be a dictionary with a PIL image under the key "image"
         if isinstance(pixels, dict) and "image" in pixels:
             pil_image = pixels["image"].convert("RGB")
         else:
-            try:
-                import torch
-                from torchvision.transforms.functional import to_pil_image
-            except ImportError:
-                raise RuntimeError("torch and torchvision are required for tensor to PIL conversion.")
-            if isinstance(pixels, torch.Tensor):
-                # If the tensor has a batch dimension (4D), select the first image.
-                if pixels.ndim == 4:
-                    pixels = pixels[0]
-                # Now pixels should have 2 or 3 dimensions.
-                pil_image = to_pil_image(pixels.cpu())
-            else:
-                raise ValueError("Unsupported image input type. Expected dict with 'image' key or a torch.Tensor.")
+            raise ValueError("Input must be a dict with a PIL image under the key 'image'.")
 
-        # Save the PIL image to a temporary file so we can load it with Wand or G'MIC.
+        # Save the PIL image to a temporary file so that it can be processed by Wand or G'MIC.
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
             in_path = tmp_in.name
             pil_image.save(in_path, "PNG")
@@ -58,7 +45,6 @@ class BrushStrokesNode:
         if method == "imagick":
             if WandImage is None:
                 raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
-
             with WandImage(filename=in_path) as wand_img:
                 if style == "oilpaint":
                     wand_img.oil_paint(radius=float(strength))
@@ -67,14 +53,11 @@ class BrushStrokesNode:
                 else:
                     wand_img.oil_paint(radius=float(strength))
                 wand_img.save(filename=out_path)
-
         elif method == "gmic":
             if Gmic is None:
                 raise RuntimeError("gmic-py not installed or failed to import.")
-
             g = Gmic()
             g.run(in_path)
-
             if style == "painting":
                 cmd = f"fx_painting {strength},0.5,0.4,0,0,0"
             elif style == "brushify":
@@ -84,11 +67,14 @@ class BrushStrokesNode:
             g.run(cmd)
             g.run(out_path)
 
+        # Open the processed image.
         result_img = PILImage.open(out_path).convert("RGB")
 
+        # Clean up temporary files.
         if os.path.exists(in_path):
             os.remove(in_path)
         if os.path.exists(out_path):
             os.remove(out_path)
 
+        # Return the processed image as a dict with key "image".
         return ({"image": result_img},)
