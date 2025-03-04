@@ -39,23 +39,29 @@ class BrushStrokesNode:
     def apply_brush_strokes(self, image, method, style, strength):
         # Debug: print the type and shape (if tensor) of the input.
         print("DEBUG: type(image):", type(image))
+        
+        # If the image is a torch.Tensor, process accordingly.
         if torch is not None and isinstance(image, torch.Tensor):
-            print("DEBUG: image.shape:", image.shape)
-            # If the tensor has a batch dimension, select the first element.
+            print("DEBUG: original image shape:", image.shape)
+            # Remove batch dimension if present.
             if image.ndim == 4:
                 image = image[0]
-                print("DEBUG: using first element from batch, new shape:", image.shape)
-            # If the tensor is 3D but in HWC order (e.g., shape[0] not in [1,3,4] but last dimension is valid)
+                print("DEBUG: after removing batch, shape:", image.shape)
+            # Check if the tensor appears to be in HWC format.
+            # If the first dimension is NOT in [1, 3, 4], assume it's HWC.
             if image.ndim == 3:
-                if image.shape[0] not in [1, 3, 4] and image.shape[-1] in [1, 3, 4]:
-                    print("DEBUG: Permuting tensor from HWC to CHW")
+                if image.shape[0] not in [1, 3, 4]:
+                    print("DEBUG: Detected HWC format; permuting to CHW.")
                     image = image.permute(2, 0, 1)
-                    print("DEBUG: new shape:", image.shape)
+                    print("DEBUG: new shape after permutation:", image.shape)
+                else:
+                    print("DEBUG: Assuming tensor is already in CHW format; no permutation needed.")
             pil_image = to_pil_image(image.cpu())
         else:
-            # Assume image is already a PIL image.
+            # Assume the input is already a PIL image.
             pil_image = image.convert("RGB")
         
+        # Process with the chosen method.
         if method == "imagick":
             if WandImage is None:
                 raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
