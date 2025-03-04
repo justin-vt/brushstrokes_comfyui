@@ -17,7 +17,7 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pixels": ("IMAGE",),  # Expected to be a dict with key "image" (a PIL image)
+                "pixels": ("IMAGE",),  # Accepts a dict with "image" key or a PIL image directly
                 "method": (["imagick", "gmic"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint", "painting", "brushify"], {"default": "oilpaint", "label": "Style"}),
                 "strength": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "label": "Strength"}),
@@ -29,11 +29,13 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, pixels, method, style, strength):
-        # Expect input to be a dictionary with a PIL image under the key "image"
+        # Accept either a dict containing a PIL image or a raw PIL image
         if isinstance(pixels, dict) and "image" in pixels:
             pil_image = pixels["image"].convert("RGB")
+        elif isinstance(pixels, PILImage.Image):
+            pil_image = pixels.convert("RGB")
         else:
-            raise ValueError("Input must be a dict with a PIL image under the key 'image'.")
+            raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly.")
 
         # Save the PIL image to a temporary file so that it can be processed by Wand or G'MIC.
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
@@ -67,14 +69,11 @@ class BrushStrokesNode:
             g.run(cmd)
             g.run(out_path)
 
-        # Open the processed image.
         result_img = PILImage.open(out_path).convert("RGB")
 
-        # Clean up temporary files.
         if os.path.exists(in_path):
             os.remove(in_path)
         if os.path.exists(out_path):
             os.remove(out_path)
 
-        # Return the processed image as a dict with key "image".
         return ({"image": result_img},)
