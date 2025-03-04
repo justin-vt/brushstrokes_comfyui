@@ -93,4 +93,8 @@ class BrushStrokesNode:
         result_tensor = to_tensor(processed_pil)
         result_tensor = result_tensor.unsqueeze(0)  # Now shape is [1, C, H, W].
     
+        # Debug: Check the shape and type of the result tensor
+        print("DEBUG: result_tensor shape:", result_tensor.shape)
+        print("DEBUG: result_tensor dtype:", result_tensor.dtype)
+    
         return (result_tensor,)
