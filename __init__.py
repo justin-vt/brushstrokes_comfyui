@@ -1,8 +1,9 @@
-from . import nodes
+from .nodes import BrushStrokesNode 
 
 NODE_CLASS_MAPPINGS = {
-    "BrushStrokesNode": nodes.BrushStrokesNode,
+    "BrushStrokesNode":BrushStrokesNode
 }
-from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
-__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "BrushStrokesNode": "Brush Strokes Node"
+}
