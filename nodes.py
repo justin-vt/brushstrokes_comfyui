@@ -14,6 +14,12 @@ except ImportError:
     cv2 = None
     np = None
 
+try:
+    import torch
+    from torchvision.transforms.functional import to_pil_image
+except ImportError:
+    torch = None
+
 class BrushStrokesNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -34,8 +40,12 @@ class BrushStrokesNode:
         # Debug: print the type of the input "image" parameter.
         print("DEBUG: type(image):", type(image))
         
-        # Assume the input is a PIL image.
-        pil_image = image.convert("RGB")
+        # If the image is a torch.Tensor, convert it to a PIL image.
+        if torch is not None and isinstance(image, torch.Tensor):
+            pil_image = to_pil_image(image.cpu())
+        else:
+            # Assume image is already a PIL image.
+            pil_image = image.convert("RGB")
         
         if method == "imagick":
             if WandImage is None:
