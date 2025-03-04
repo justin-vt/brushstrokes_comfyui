@@ -1,9 +1,24 @@
 import os
 import tempfile
 from PIL import Image as PILImage
-import numpy as np
-import torch
-from torchvision.transforms.functional import to_pil_image, to_tensor
+
+try:
+    from wand.image import Image as WandImage
+except ImportError:
+    WandImage = None
+
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None
+    np = None
+
+try:
+    import torch
+    from torchvision.transforms.functional import to_pil_image, to_tensor
+except ImportError:
+    torch = None
 
 class BrushStrokesNode:
     @classmethod
