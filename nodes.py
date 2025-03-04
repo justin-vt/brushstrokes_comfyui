@@ -40,22 +40,20 @@ class BrushStrokesNode:
         # Debug: print the type and shape (if tensor) of the input.
         print("DEBUG: type(image):", type(image))
         if torch is not None and isinstance(image, torch.Tensor):
-            print("DEBUG: original image shape:", image.shape)
-            # If the tensor has a batch dimension, select the first image.
+            print("DEBUG: image.shape:", image.shape)
+            # If the tensor has a batch dimension, select the first element.
             if image.ndim == 4:
                 image = image[0]
                 print("DEBUG: using first element from batch, new shape:", image.shape)
-            # At this point, if the tensor is 3D, check if it appears to be in CHW format.
-            # If the first dimension (channels) is not 1, 3, or 4 but the last dimension is not in that set either,
-            # then it's likely in CHW format. Convert it to HWC.
+            # If the tensor is 3D but in HWC order (e.g., shape[0] not in [1,3,4] but last dimension is valid)
             if image.ndim == 3:
-                if image.shape[0] not in [1, 3, 4] and image.shape[-1] not in [1, 3, 4]:
-                    print("DEBUG: Permuting tensor from CHW to HWC")
-                    image = image.permute(1, 2, 0)
-                    print("DEBUG: new shape after permutation:", image.shape)
+                if image.shape[0] not in [1, 3, 4] and image.shape[-1] in [1, 3, 4]:
+                    print("DEBUG: Permuting tensor from HWC to CHW")
+                    image = image.permute(2, 0, 1)
+                    print("DEBUG: new shape:", image.shape)
             pil_image = to_pil_image(image.cpu())
         else:
-            # Assume the input is already a PIL image.
+            # Assume image is already a PIL image.
             pil_image = image.convert("RGB")
         
         if method == "imagick":
