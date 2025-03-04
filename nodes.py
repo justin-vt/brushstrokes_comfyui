@@ -17,7 +17,7 @@ class BrushStrokesNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pixels": ("IMAGE",),  # Expects a dict with "image" key or a raw PIL image.
+                "pixels": ("IMAGE",),  # Accepts dict/PIL image/torch.Tensor
                 "method": (["imagick", "gmic"], {"default": "imagick", "label": "Which method to use"}),
                 "style": (["oilpaint", "paint", "painting", "brushify"], {"default": "oilpaint", "label": "Style"}),
                 "strength": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "label": "Strength"}),
@@ -29,13 +29,46 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, pixels, method, style, strength):
-        # Check if input is a dict with a PIL image under 'image', or a raw PIL image.
-        if isinstance(pixels, dict) and "image" in pixels:
-            pil_image = pixels["image"].convert("RGB")
+        # Attempt to import torch and torchvision transforms for tensor conversion.
+        try:
+            import torch
+            from torchvision.transforms.functional import to_pil_image
+        except ImportError:
+            torch = None
+
+        # Determine input type:
+        pil_image = None
+
+        if isinstance(pixels, dict):
+            # Check for common keys ("image" or "IMAGE")
+            if "image" in pixels:
+                pil_image = pixels["image"]
+            elif "IMAGE" in pixels:
+                pil_image = pixels["IMAGE"]
+            else:
+                raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
         elif isinstance(pixels, PILImage.Image):
-            pil_image = pixels.convert("RGB")
+            pil_image = pixels
+        elif torch is not None and isinstance(pixels, torch.Tensor):
+            pil_image = pixels
         else:
             raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
+
+        # If pil_image is a torch.Tensor, convert it to a PIL image.
+        if torch is not None and isinstance(pil_image, torch.Tensor):
+            # If there is a batch dimension, take the first image.
+            if pil_image.ndim == 4:
+                pil_image = pil_image[0]
+            # If there are more than 4 channels (unexpected), slice to first 3 channels.
+            if pil_image.ndim == 3 and pil_image.shape[0] > 4:
+                pil_image = pil_image[:3, :, :]
+            pil_image = to_pil_image(pil_image.cpu())
+        # If it's not a PIL image at this point, try converting.
+        elif not isinstance(pil_image, PILImage.Image):
+            raise ValueError("Input must be a dict with a PIL image under the key 'image' or a PIL image directly")
+
+        # Convert to RGB (if not already)
+        pil_image = pil_image.convert("RGB")
 
         # Save the PIL image to a temporary file for processing.
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_in:
@@ -44,6 +77,7 @@ class BrushStrokesNode:
 
         out_path = in_path + "_out.png"
 
+        # Apply brush effect using the selected method.
         if method == "imagick":
             if WandImage is None:
                 raise RuntimeError("Wand (ImageMagick) not installed or failed to import.")
