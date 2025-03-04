@@ -29,17 +29,21 @@ class BrushStrokesNode:
     CATEGORY = "Custom/Artistic"
 
     def apply_brush_strokes(self, pixels, method, style, strength):
-        # Determine input type: dict containing a PIL image or a torch.Tensor
+        # Handle input: if it's a dict with a PIL image, use it;
+        # otherwise, assume it's a torch.Tensor.
         if isinstance(pixels, dict) and "image" in pixels:
             pil_image = pixels["image"].convert("RGB")
         else:
-            # Assume it's a tensor; convert to PIL image using torchvision
             try:
                 import torch
                 from torchvision.transforms.functional import to_pil_image
             except ImportError:
                 raise RuntimeError("torch and torchvision are required for tensor to PIL conversion.")
             if isinstance(pixels, torch.Tensor):
+                # If the tensor has a batch dimension (4D), select the first image.
+                if pixels.ndim == 4:
+                    pixels = pixels[0]
+                # Now pixels should have 2 or 3 dimensions.
                 pil_image = to_pil_image(pixels.cpu())
             else:
                 raise ValueError("Unsupported image input type. Expected dict with 'image' key or a torch.Tensor.")
