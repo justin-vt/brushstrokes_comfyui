@@ -1,9 +1,13 @@
-from .nodes import BrushStrokesNode 
+from .nodes import PILBrushStrokesNode, OpenCVBrushStrokesNode, WandBrushStrokesNode
 
 NODE_CLASS_MAPPINGS = {
-    "BrushStrokesNode":BrushStrokesNode
+    "PILBrushStrokesNode": PILBrushStrokesNode
+    "OpenCVBrushStrokesNode": OpenCVBrushStrokesNode
+    "WandBrushStrokesNode": WandBrushStrokesNode
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "BrushStrokesNode": "Brush Strokes Node"
+    "PILBrushStrokesNode": "Brush Strokes (PIL bindings)",
+    "OpenCVBrushStrokesNode": "Brush Strokes (OpenCV bindings)",
+    "WandBrushStrokesNode": "Brush Strokes (ImageMagick bindings)"
 }
