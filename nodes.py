@@ -1,4 +1,4 @@
-afrom PIL import Image, ImageEnhance, ImageOps
+from PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 import torch
 import io
