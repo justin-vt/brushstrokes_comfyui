@@ -1,11 +1,4 @@
-from PIL import Image, ImageEnhance, ImageOps
-import numpy as np
-import torch
-import io
-from wand.image import Image as WandImage
-import cv2
-
-from PIL import Image, ImageEnhance, ImageOps
+afrom PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 import torch
 import io
@@ -21,13 +14,19 @@ class WandBrushStrokesNode:
         return {
             "required": {
                 "input_image": ("IMAGE", {"tooltip": "Input image tensor from the Load Image node."}),
-                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"], {"tooltip": "Select a painterly preset. Choosing a preset overrides manual parameters."}),
-                # Only used in Custom mode.
-                "effect": (["Swirl", "Wave", "Pixelation"], {"tooltip": "In Custom mode, choose the Wand effect to apply."}),
-                "degree": ("FLOAT", {"default": 30.0, "min": 0.0, "max": 360.0, "step": 1.0, "tooltip": "Swirl: the swirl degree (used when effect is Swirl or in Custom mode)."}),
-                "amplitude": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "tooltip": "Wave: amplitude in pixels (used when effect is Wave in Custom mode)."}),
-                "wavelength": ("FLOAT", {"default": 50.0, "min": 1.0, "max": 200.0, "step": 1.0, "tooltip": "Wave: wavelength in pixels (used when effect is Wave in Custom mode)."}),
-                "pixel_size": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 50.0, "step": 1.0, "tooltip": "Pixelation: size factor for pixelation (used when effect is Pixelation in Custom mode)."})
+                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"], 
+                           {"tooltip": "Select a painterly preset. Changing this preset sets default values for all dependent parameters."}),
+                # Only used in Custom mode:
+                "effect": (["Swirl", "Wave", "Pixelation"], 
+                           {"tooltip": "In Custom mode, choose the Wand effect to apply."}),
+                "degree": ("FLOAT", {"default": 30.0, "min": 0.0, "max": 360.0, "step": 1.0, 
+                                       "tooltip": "Swirl: the swirl degree (used when effect is Swirl or in Custom mode)."}),
+                "amplitude": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, 
+                                          "tooltip": "Wave: amplitude in pixels (used when effect is Wave in Custom mode)."}),
+                "wavelength": ("FLOAT", {"default": 50.0, "min": 1.0, "max": 200.0, "step": 1.0, 
+                                           "tooltip": "Wave: wavelength in pixels (used when effect is Wave in Custom mode)."}),
+                "pixel_size": ("FLOAT", {"default": 10.0, "min": 1.0, "max": 50.0, "step": 1.0, 
+                                           "tooltip": "Pixelation: size factor for pixelation (used when effect is Pixelation in Custom mode)."})
             }
         }
     
@@ -35,21 +34,23 @@ class WandBrushStrokesNode:
     FUNCTION = "process_image"
     CATEGORY = "Utility"
     
-    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, degree: float, amplitude: float, wavelength: float, pixel_size: float):
-        # Presets override manual parameters.
+    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, 
+                      degree: float, amplitude: float, wavelength: float, pixel_size: float):
+        # When a preset is chosen (not "Custom"), override dependent parameters.
         if preset != "Custom":
             if preset == "Expressionist":
                 effect = "Swirl"
-                degree = 45.0
+                degree = 90.0           # Bold, exaggerated swirl
             elif preset == "Realist":
                 effect = "Wave"
-                amplitude, wavelength = 8.0, 60.0
+                amplitude, wavelength = 3.0, 80.0  # Subtle wave for gentle distortion
             elif preset == "Abstract":
                 effect = "Pixelation"
-                pixel_size = 12.0
+                pixel_size = 15.0        # Strong pixelation to flatten detail
             elif preset == "Impressionist":
                 effect = "Swirl"
-                degree = 30.0  # a lighter swirl
+                degree = 30.0           # Mild swirl to suggest fleeting motion
+
         # Convert input tensor to uint8 numpy array.
         img_np = input_image[0].cpu().numpy()
         img_uint8 = (np.clip(img_np * 255.0, 0, 255)).astype(np.uint8)
@@ -61,7 +62,8 @@ class WandBrushStrokesNode:
             if effect == "Swirl":
                 wand_img.swirl(degree=degree)
             elif effect == "Wave":
-                wand_img.wave(amplitude=amplitude, wavelength=wavelength)
+                # Use positional arguments for wave effect.
+                wand_img.wave(amplitude, wavelength)
             elif effect == "Pixelation":
                 orig_width, orig_height = wand_img.width, wand_img.height
                 new_width = max(1, int(orig_width / pixel_size))
@@ -83,12 +85,17 @@ class OpenCVBrushStrokesNode:
         return {
             "required": {
                 "input_image": ("IMAGE", {"tooltip": "Input image tensor from the Load Image node."}),
-                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"], {"tooltip": "Select a painterly preset. Choosing a preset overrides manual parameters."}),
-                # Only used in Custom mode.
-                "effect": (["Stylization", "Edge Preserving"], {"tooltip": "In Custom mode, choose the OpenCV effect to apply."}),
-                "sigma_s": ("FLOAT", {"default": 60.0, "min": 0.0, "max": 200.0, "step": 1.0, "tooltip": "Spatial scale (sigma_s); used only in Custom mode."}),
-                "sigma_r": ("FLOAT", {"default": 0.45, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Range value (sigma_r); used only in Custom mode."}),
-                "filter_flag": ("INT", {"default": 1, "min": 0, "max": 1, "step": 1, "tooltip": "For Edge Preserving: 0 for Normal, 1 for Recursive filter; used only in Custom mode."})
+                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"],
+                           {"tooltip": "Select a painterly preset. Changing this preset sets default values for all dependent parameters."}),
+                # Only used in Custom mode:
+                "effect": (["Stylization", "Edge Preserving"], 
+                           {"tooltip": "In Custom mode, choose the OpenCV effect to apply."}),
+                "sigma_s": ("FLOAT", {"default": 60.0, "min": 0.0, "max": 200.0, "step": 1.0,
+                                        "tooltip": "Spatial scale (sigma_s); used only in Custom mode."}),
+                "sigma_r": ("FLOAT", {"default": 0.45, "min": 0.0, "max": 1.0, "step": 0.01,
+                                        "tooltip": "Range value (sigma_r); used only in Custom mode."}),
+                "filter_flag": ("INT", {"default": 1, "min": 0, "max": 1, "step": 1,
+                                          "tooltip": "For Edge Preserving: 0 for Normal, 1 for Recursive filter; used only in Custom mode."})
             }
         }
     
@@ -96,20 +103,22 @@ class OpenCVBrushStrokesNode:
     FUNCTION = "process_image"
     CATEGORY = "Utility"
     
-    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, sigma_s: float, sigma_r: float, filter_flag: int):
+    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, 
+                      sigma_s: float, sigma_r: float, filter_flag: int):
+        # When a preset is chosen (not "Custom"), override dependent parameters.
         if preset != "Custom":
             if preset == "Expressionist":
                 effect = "Stylization"
-                sigma_s, sigma_r = 80.0, 0.50
+                sigma_s, sigma_r = 100.0, 0.50  # Enhanced stylization for dramatic, painterly feel
             elif preset == "Realist":
                 effect = "Edge Preserving"
-                sigma_s, sigma_r, filter_flag = 120.0, 0.40, 1
+                sigma_s, sigma_r, filter_flag = 80.0, 0.40, 1  # Subtle smoothing to preserve detail
             elif preset == "Abstract":
                 effect = "Stylization"
-                sigma_s, sigma_r = 150.0, 0.60
+                sigma_s, sigma_r = 150.0, 0.60  # Aggressive stylization to flatten details
             elif preset == "Impressionist":
                 effect = "Stylization"
-                sigma_s, sigma_r = 90.0, 0.55
+                sigma_s, sigma_r = 90.0, 0.55  # Moderate stylization for soft, vibrant look
         img_np = input_image[0].cpu().numpy()
         img_uint8 = (np.clip(img_np * 255.0, 0, 255)).astype(np.uint8)
         cv_img = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR)
@@ -133,11 +142,15 @@ class PILBrushStrokesNode:
         return {
             "required": {
                 "input_image": ("IMAGE", {"tooltip": "Input image tensor from the Load Image node."}),
-                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"], {"tooltip": "Select a painterly preset. Choosing a preset overrides manual parameters."}),
-                # Only used in Custom mode.
-                "effect": (["Color Painting", "Realistic", "Vibrance"], {"tooltip": "In Custom mode, choose the PIL effect to apply."}),
-                "strength": ("FLOAT", {"default": 10.0, "min": 0.0, "max": 100.0, "step": 1.0, "tooltip": "Controls effect intensity (e.g. saturation/brightness factor); used only in Custom mode."}),
-                "radius": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0, "tooltip": "Modulates posterization depth or contrast; used only in Custom mode."})
+                "preset": (["Custom", "Expressionist", "Realist", "Abstract", "Impressionist"],
+                           {"tooltip": "Select a painterly preset. Changing this preset sets default values for all dependent parameters."}),
+                # Only used in Custom mode:
+                "effect": (["Color Painting", "Realistic", "Vibrance"], 
+                           {"tooltip": "In Custom mode, choose the PIL effect to apply."}),
+                "strength": ("FLOAT", {"default": 10.0, "min": 0.0, "max": 100.0, "step": 1.0,
+                                         "tooltip": "Controls effect intensity (e.g. saturation/brightness factor); used only in Custom mode."}),
+                "radius": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 1.0,
+                                       "tooltip": "Modulates posterization depth or contrast; used only in Custom mode."})
             }
         }
     
@@ -145,20 +158,22 @@ class PILBrushStrokesNode:
     FUNCTION = "process_image"
     CATEGORY = "Utility"
     
-    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, strength: float, radius: float):
+    def process_image(self, input_image: torch.Tensor, preset: str, effect: str, 
+                      strength: float, radius: float):
+        # When a preset is chosen (not "Custom"), override dependent parameters.
         if preset != "Custom":
             if preset == "Expressionist":
                 effect = "Color Painting"
-                strength, radius = 25.0, 3.0
+                strength, radius = 30.0, 2.0   # Strong saturation and aggressive posterization
             elif preset == "Realist":
                 effect = "Realistic"
-                strength, radius = 15.0, 15.0
+                strength, radius = 10.0, 10.0  # Mild adjustments for natural appearance
             elif preset == "Abstract":
                 effect = "Vibrance"
-                strength, radius = 30.0, 10.0
+                strength, radius = 40.0, 12.0  # High saturation and contrast for a flattened, graphic look
             elif preset == "Impressionist":
                 effect = "Color Painting"
-                strength, radius = 20.0, 5.0
+                strength, radius = 20.0, 5.0   # Moderate saturation with subtle posterization
         img_np = input_image[0].cpu().numpy()
         img_uint8 = (np.clip(img_np * 255.0, 0, 255)).astype(np.uint8)
         pil_img = Image.fromarray(img_uint8).convert("RGB")
@@ -166,7 +181,8 @@ class PILBrushStrokesNode:
             enhancer = ImageEnhance.Color(pil_img)
             factor = 1 + (strength / 10.0)
             pil_img = enhancer.enhance(factor)
-            bits = max(1, min(8, int(8 - (radius / 10.0))))
+            bits = max(1, min(8, int(8 - (radius / 10.0)))
+                       )  # Fewer bits means stronger posterization.
             pil_img = ImageOps.posterize(pil_img, bits)
         elif effect == "Realistic":
             enhancer = ImageEnhance.Brightness(pil_img)
@@ -182,8 +198,11 @@ class PILBrushStrokesNode:
         output_tensor = torch.from_numpy(processed_np)[None, ...]
         return (output_tensor,)
 
+###############################################
+# Node Mappings
+###############################################
 NODE_CLASS_MAPPINGS = {
-    "PILBrushStrokesNode": PILBrushStrokesNode,
+    "WandBrushStrokesNode": WandBrushStrokesNode,
     "OpenCVBrushStrokesNode": OpenCVBrushStrokesNode,
-    "WandBrushStrokesNode": WandBrushStrokesNode
+    "PILBrushStrokesNode": PILBrushStrokesNode
 }
