@@ -158,7 +158,7 @@ class PILBrushStrokesNode:
         return (output_tensor,)
 
 NODE_CLASS_MAPPINGS = {
-    "PILBrushStrokesNode": PILBrushStrokesNode
-    "OpenCVBrushStrokesNode": OpenCVBrushStrokesNode
+    "PILBrushStrokesNode": PILBrushStrokesNode,
+    "OpenCVBrushStrokesNode": OpenCVBrushStrokesNode,
     "WandBrushStrokesNode": WandBrushStrokesNode
 }
